@@ -80,8 +80,8 @@ Run the simulation with a config file:
 
 ```
 ./gen-cfg.sh
-g++ -std=c++17 main.cpp -o cubulation
-./cubulation Cfg--0.4-2400.txt
+g++ main.cpp -I. -std=c++17 -O3 -o Cb
+./Cb Cfg--0.4-2400.txt
 ```
 
 This will run a cubulation simulation at `λ = -0.4`, area `A = 2400`, saving outputs with the chosen `name`.
