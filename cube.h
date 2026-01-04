@@ -5,6 +5,9 @@
 
 #include <functional>
 #include <unordered_map>
+#include <array>
+#include <vector>
+#include <string>
 #include <cmath> // For std::sqrt
 #include <cassert>
 struct Vector3 {
@@ -38,31 +41,21 @@ struct Vector3 {
     Vector3 * getVector() { return this; };
     
     
-    std::vector<Vector3> getOrthogonal() const {
-        std::vector<Vector3> orthogonalVectors;
+    // For axis-aligned vectors, return the 4 orthogonal directions without allocating.
+    std::array<Vector3, 4> getOrthogonal() const {
+        // This codebase only calls getOrthogonal() for axis-aligned directions (faces).
+        assert((x != 0 && y == 0 && z == 0) || (y != 0 && x == 0 && z == 0) || (z != 0 && x == 0 && y == 0));
 
-        // Check if the vector is aligned with the x-axis
-        if (x != 0 && y == 0 && z == 0) {
-            orthogonalVectors.push_back(Vector3(0, 1, 0));  // y-axis vector
-            orthogonalVectors.push_back(Vector3(0, 0, 1));  // z-axis vector
+        // x-axis (±x): orthogonal are ±y and ±z
+        if (x != 0) {
+            return {Vector3(0, 1, 0), Vector3(0, 0, 1), Vector3(0, -1, 0), Vector3(0, 0, -1)};
         }
-        // Check if the vector is aligned with the y-axis
-        else if (y != 0 && x == 0 && z == 0) {
-            orthogonalVectors.push_back(Vector3(1, 0, 0));  // x-axis vector
-            orthogonalVectors.push_back(Vector3(0, 0, 1));  // z-axis vector
+        // y-axis (±y): orthogonal are ±x and ±z
+        if (y != 0) {
+            return {Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(-1, 0, 0), Vector3(0, 0, -1)};
         }
-        // Check if the vector is aligned with the z-axis
-        else if (z != 0 && x == 0 && y == 0) {
-            orthogonalVectors.push_back(Vector3(1, 0, 0));  // x-axis vector
-            orthogonalVectors.push_back(Vector3(0, 1, 0));  // y-axis vector
-        }
-        
-        // After determining the initial two orthogonal vectors...
-		orthogonalVectors.push_back(orthogonalVectors[0] * -1); // Negate the first orthogonal vector
-		orthogonalVectors.push_back(orthogonalVectors[1] * -1); // Negate the second orthogonal vector
-
-
-        return orthogonalVectors;
+        // z-axis (±z): orthogonal are ±x and ±y
+        return {Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(-1, 0, 0), Vector3(0, -1, 0)};
     }
     
 	 std::vector<Vector3> decompose() const {
@@ -83,11 +76,11 @@ struct Vector3 {
         else return "0"; // Return "0" for the zero vector or non-axis-aligned vectors
     }
     
-	void printCoord() { printf("Direction: (%d, %d, %d)\n",x,y,z); }
+	void printCoord() const { printf("Direction: (%d, %d, %d)\n",x,y,z); }
 //    void printCoord() { printf("Direction: (x,y,z): (%d, %d, %d)\n",x,y,z); }
 
-	void validateNonZero() { assert(x != 0 || y != 0 || z != 0);}
-	void validateZero() { assert((x == 0 && y==0 && z == 0)) ;}
+	void validateNonZero() const { assert(x != 0 || y != 0 || z != 0);}
+	void validateZero() const { assert((x == 0 && y==0 && z == 0)) ;}
 	
 };
 
@@ -109,7 +102,15 @@ public:
 	
     Face( ) { Initialize(); }
     
-    void Initialize() { id = -1; bId = -1; coordinate = {0,0,0}; isBoundary = 1; }
+    void Initialize() {
+        id = -1;
+        bId = -1;
+        coordinate = {0, 0, 0};
+        isBoundary = 1;
+        // These maps are tiny and fairly stable; reserving reduces rehash churn.
+        cubes.reserve(2);
+        neighbors.reserve(4);
+    }
     
     int getId() { return id;}
     int getBId() { return bId;}
@@ -120,8 +121,8 @@ public:
 	void setVector(Vector3 vector) { coordinate = vector; }
 	void unsetVector() { coordinate = {0,0,0}; }
 	
-	Vector3 getVector() { return coordinate ; }
-	std::string getVectorStr() { return coordinate.getStr() ; }
+	const Vector3& getVector() const { return coordinate ; }
+	std::string getVectorStr() const { return coordinate.getStr() ; }
 
 	
 	void setCube(const Vector3& direction, Cube* cube) {
@@ -236,12 +237,17 @@ public:
     Cube() { Initialize() ; }
     
 	
-	void Initialize() {  id = -1; coordinate = {0,0,0} ;}
+	void Initialize() {
+        id = -1;
+        coordinate = {0, 0, 0};
+        faces.reserve(6);
+        neighbors.reserve(26); // offsets in {-1,0,1}^3 excluding (0,0,0)
+    }
 
 	void setVector(int x, int y, int z) { coordinate = Vector3(x, y, z); }
 	void setVector(Vector3 vector) { coordinate = vector; }
 	
-	Vector3 getVector() { return coordinate ; }
+	const Vector3& getVector() const { return coordinate ; }
 	
 	void setFace(const Vector3& direction, Face* face) { faces[direction] = face; }
 

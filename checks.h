@@ -38,7 +38,7 @@ void Ball::validateBoundaryCube() {
         Vector3 direction = face->getVector();
         
 
-		 std::vector<Vector3> orthogonals = direction.getOrthogonal(); // Get the orthogonal directions
+		 auto orthogonals = direction.getOrthogonal(); // 4 orthogonal directions (no allocation)
 		 
 		 		
         // Check the cube at the boundary direction
@@ -186,7 +186,7 @@ void Ball::validateBoundaryFaceNeighbors() {
         Vector3 direction = face->getVector();
 		face->printNeighbors();
 		
-        std::vector<Vector3> orthogonals = direction.getOrthogonal();
+        auto orthogonals = direction.getOrthogonal();
         
         
 

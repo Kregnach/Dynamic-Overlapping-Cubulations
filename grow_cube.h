@@ -39,7 +39,7 @@ std::pair<int, Face*> Ball::CheckValidGrow(Face* boundaryFace) {
 
     Vector3 direction = boundaryFace->getVector(); // Get the direction of the boundary cube
     
-    std::vector<Vector3> orthogonals = direction.getOrthogonal(); // Get the orthogonal directions
+    auto orthogonals = direction.getOrthogonal(); // 4 orthogonal directions (no allocation)
 	
 //	printf("BoundaryFace of CUBE %d: \n",oldCube->getId());
 //	direction.printCoord();
@@ -88,13 +88,15 @@ std::pair<int, Face*> Ball::CheckValidGrow(Face* boundaryFace) {
 
 	}
     
-    sideCubes_below[4] =  {nullptr};
-    sideCubes_layer[4] =  {nullptr};
-    sideCubes_above[4] =  {nullptr};
-    
-    cornerCubes_below[4] =  {nullptr};
-    cornerCubes_layer[4] =  {nullptr};
-    cornerCubes_above[4] =  {nullptr};
+    // Reset local neighbor caches (avoid out-of-bounds writes on [4]).
+    for (int i = 0; i < 4; i++) {
+        sideCubes_below[i] = nullptr;
+        sideCubes_layer[i] = nullptr;
+        sideCubes_above[i] = nullptr;
+        cornerCubes_below[i] = nullptr;
+        cornerCubes_layer[i] = nullptr;
+        cornerCubes_above[i] = nullptr;
+    }
     
     
     Face * adjacentFaces[4] = {nullptr};
@@ -123,7 +125,7 @@ std::pair<int, Face*> Ball::CheckValidGrow(Face* boundaryFace) {
     	if(sideCubes_layer[i]) {
     		
     		if(!cornerCubes_above[i]) cornerCubes_above[i] = sideCubes_layer[i]->getNeighbor(orthogonals[(i+1)%4]+ direction);
-    		if(!cornerCubes_above[(i+3)]%4) cornerCubes_above[(i+3)%4] = sideCubes_layer[i]->getNeighbor(orthogonals[(i+3)%4] + direction);
+    		if(!cornerCubes_above[(i+3)%4]) cornerCubes_above[(i+3)%4] = sideCubes_layer[i]->getNeighbor(orthogonals[(i+3)%4] + direction);
 
     		if(!sideCubes_above[(i+1)%4]) sideCubes_above[(i+1)%4] = sideCubes_layer[i]->getNeighbor(orthogonals[(i+1)%4] + orthogonals[i]*-1 + direction);
       		if(!sideCubes_above[(i+3)%4]) sideCubes_above[(i+3)%4] = sideCubes_layer[i]->getNeighbor(orthogonals[(i+3)%4] + orthogonals[i]*-1 + direction);
@@ -236,7 +238,7 @@ void Ball::growCube(Face* boundaryFace) {
 	
 	Vector3 direction = boundaryFace->getVector(); // Set the new cube adjacent to the boundary face
 	newCube->setVector(oldCube->getVector() + direction); // set the coordinate of the old cube
-	std::vector<Vector3> orthogonals = direction.getOrthogonal(); // Get the orthogonal directions
+	auto orthogonals = direction.getOrthogonal(); // 4 orthogonal directions (no allocation)
 	
 	for(int i = 0 ; i < 4 ; i++) {
 				
