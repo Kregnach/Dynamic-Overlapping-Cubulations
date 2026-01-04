@@ -10,7 +10,15 @@ Cube* Ball::createCube() {
     if (nextCubeId >= AbsMaxCubexId) return nullptr;
 
     int id = availableCubeIds[nextCubeId];
-    Cube* cube = new Cube();
+    Cube* cube = nullptr;
+    if (!freeCubes.empty()) {
+        cube = freeCubes.back();
+        freeCubes.pop_back();
+        cube->Initialize();
+    } else {
+        cube = new Cube();
+        allocatedCubes.push_back(cube);
+    }
     cube->setId(id);
     cubeMap[id] = cube;
     nextCubeId++; // Move to the next available ID
@@ -24,9 +32,10 @@ void Ball::deleteCube(Cube * cube) {
 	nextCubeId--;
 	
 	cubeMap[id]->setId(id);
-	
-	delete cube;
-	cube = nullptr;
+
+    // Clear the old last slot and recycle the allocation.
+    cubeMap[nextCubeId] = nullptr;
+    freeCubes.push_back(cube);
 }
 
 
@@ -34,7 +43,15 @@ Face* Ball::createFace() {
     if (nextFaceId >= AbsMaxFacexId) return nullptr;
 
     int id = availableFaceIds[nextFaceId];
-    Face* face = new Face();
+    Face* face = nullptr;
+    if (!freeFaces.empty()) {
+        face = freeFaces.back();
+        freeFaces.pop_back();
+        face->Initialize();
+    } else {
+        face = new Face();
+        allocatedFaces.push_back(face);
+    }
     face->setId(id);
     faceMap[id] = face;
     nextFaceId++; // Move to the next available ID
@@ -51,9 +68,9 @@ void Ball::deleteFace(Face * face) {
 	nextFaceId--;
 		
 	faceMap[id]->setId(id);
-	
-	delete face;
-	face = nullptr;
+
+    faceMap[nextFaceId] = nullptr;
+    freeFaces.push_back(face);
 }
 
 

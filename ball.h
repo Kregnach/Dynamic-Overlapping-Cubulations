@@ -2,8 +2,8 @@
 #ifndef BALL_CUBE_H
 #define BALL_CUBE_H
 
-#include <unordered_map>
 #include <set>
+#include <vector>
 #include "cube.h"
 
 
@@ -15,6 +15,13 @@ private:
     std::vector< Cube* > cubeMap;
     std::vector< Face* > faceMap;
     std::vector< Face* > BoundaryFaces;
+
+    // Reuse heap allocations for cubes/faces to avoid new/delete churn.
+    std::vector<Cube*> freeCubes;
+    std::vector<Face*> freeFaces;
+    // Track allocations for cleanup at program end.
+    std::vector<Cube*> allocatedCubes;
+    std::vector<Face*> allocatedFaces;
     
     int availableCubeIds[AbsMaxCubexId], availableFaceIds[AbsMaxFacexId], availableFaceBIds[AbsMaxFacexId];
     int nextCubeId,nextFaceId,nextFaceBId;
@@ -24,7 +31,10 @@ private:
 	
 public:
     Ball() { Initialize(); }
-    ~Ball() { }
+    ~Ball() {
+        for (Cube* c : allocatedCubes) delete c;
+        for (Face* f : allocatedFaces) delete f;
+    }
 	
 	void Initialize();
 	

@@ -1,0 +1,14 @@
+.DS_Store
+
+# build outputs
+cubulation
+Cb
+*.o
+*.obj
+
+# simulation outputs
+cube-*.out
+Boundary-*.out
+Cubulation-*.out
+CubeDensity-*.out
+
