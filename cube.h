@@ -2,19 +2,17 @@
 #ifndef CUBE_H
 #define CUBE_H
 
-
-#include <functional>
-#include <unordered_map>
 #include <array>
-#include <vector>
 #include <string>
+#include <cstdio>
+#include <iostream>
 #include <cmath> // For std::sqrt
 #include <cassert>
 struct Vector3 {
     int x, y, z;
 
 	// Constructor for convenience
-    Vector3(int x = 0, int y = 0, int z = 0) : x(x), y(y), z(z) {}
+    constexpr Vector3(int x = 0, int y = 0, int z = 0) : x(x), y(y), z(z) {}
         
     // Equality comparison
     bool operator==(const Vector3& other) const { return x == other.x && y == other.y && z == other.z; }
@@ -40,6 +38,51 @@ struct Vector3 {
     
     Vector3 * getVector() { return this; };
     
+    static inline bool isAxisAligned(const Vector3& v) {
+        const int nonZero = (v.x != 0) + (v.y != 0) + (v.z != 0);
+        return nonZero == 1 && ((v.x == 1 || v.x == -1) || (v.y == 1 || v.y == -1) || (v.z == 1 || v.z == -1));
+    }
+
+    static inline int axisIndex(const Vector3& v) {
+        // +x,+y,+z,-x,-y,-z
+        if (v.x == 1 && v.y == 0 && v.z == 0) return 0;
+        if (v.x == 0 && v.y == 1 && v.z == 0) return 1;
+        if (v.x == 0 && v.y == 0 && v.z == 1) return 2;
+        if (v.x == -1 && v.y == 0 && v.z == 0) return 3;
+        if (v.x == 0 && v.y == -1 && v.z == 0) return 4;
+        if (v.x == 0 && v.y == 0 && v.z == -1) return 5;
+        assert(false && "Expected axis-aligned unit vector");
+        return 0;
+    }
+
+    static inline Vector3 axisFromIndex(int idx) {
+        switch (idx) {
+            case 0: return Vector3(1, 0, 0);
+            case 1: return Vector3(0, 1, 0);
+            case 2: return Vector3(0, 0, 1);
+            case 3: return Vector3(-1, 0, 0);
+            case 4: return Vector3(0, -1, 0);
+            case 5: return Vector3(0, 0, -1);
+            default: assert(false && "axisFromIndex out of range"); return Vector3(0, 0, 0);
+        }
+    }
+
+    static inline int neighborIndex(const Vector3& v) {
+        // v components must be in [-1, 1] and v != (0,0,0)
+        assert(v.x >= -1 && v.x <= 1);
+        assert(v.y >= -1 && v.y <= 1);
+        assert(v.z >= -1 && v.z <= 1);
+        assert(!(v.x == 0 && v.y == 0 && v.z == 0));
+        return (v.x + 1) * 9 + (v.y + 1) * 3 + (v.z + 1);
+    }
+
+    static inline Vector3 neighborFromIndex(int idx) {
+        assert(idx >= 0 && idx < 27);
+        const int dx = (idx / 9) - 1;
+        const int dy = ((idx % 9) / 3) - 1;
+        const int dz = (idx % 3) - 1;
+        return Vector3(dx, dy, dz);
+    }
     
     // For axis-aligned vectors, return the 4 orthogonal directions without allocating.
     std::array<Vector3, 4> getOrthogonal() const {
@@ -58,14 +101,6 @@ struct Vector3 {
         return {Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(-1, 0, 0), Vector3(0, -1, 0)};
     }
     
-	 std::vector<Vector3> decompose() const {
-        return {
-            Vector3(x, 0, 0),  // Component along X
-            Vector3(0, y, 0),  // Component along Y
-            Vector3(0, 0, z)   // Component along Z
-        };
-    }
-
     std::string getStr() const {
         if (x == 1) return "x";
         else if (x == -1) return "-x";
@@ -84,10 +119,6 @@ struct Vector3 {
 	
 };
 
-// Custom hash function for Vector3
-namespace std { template<> struct hash<Vector3> { size_t operator()(const Vector3& v) const { return hash<int>()(v.x) ^ hash<int>()(v.y) << 1 ^ hash<int>()(v.z) << 2; } }; }
-
-
 class Cube; // Forward declaration to resolve circular dependency
 
 
@@ -96,8 +127,9 @@ public:
     int id;
     int bId;
     bool isBoundary;
-    std::unordered_map<Vector3, Cube*> cubes;
-    std::unordered_map<Vector3, Face*> neighbors;
+    std::array<Cube*, 6> cubes{};
+    std::array<Face*, 6> neighbors{};
+    int cubeCount;
 	Vector3 coordinate;
 	
     Face( ) { Initialize(); }
@@ -107,9 +139,9 @@ public:
         bId = -1;
         coordinate = {0, 0, 0};
         isBoundary = 1;
-        // These maps are tiny and fairly stable; reserving reduces rehash churn.
-        cubes.reserve(2);
-        neighbors.reserve(4);
+        cubes.fill(nullptr);
+        neighbors.fill(nullptr);
+        cubeCount = 0;
     }
     
     int getId() { return id;}
@@ -126,13 +158,16 @@ public:
 
 	
 	void setCube(const Vector3& direction, Cube* cube) {
-        cubes[direction] = cube;
-        
-        if(cubes.size() == 1) { isBoundary = 1; }
-		else {
-			coordinate = {0,0,0};
-			isBoundary =  0;
-		}
+        const int idx = Vector3::axisIndex(direction);
+        if (!cubes[idx]) cubeCount++;
+        cubes[idx] = cube;
+
+        if (cubeCount == 1) {
+            isBoundary = 1;
+        } else {
+            coordinate = {0, 0, 0};
+            isBoundary = 0;
+        }
         // Automatically determine if this face is a boundary element.
         // If it has only one neighbor, it's a boundary; more than one, it's not.
     }
@@ -143,48 +178,43 @@ public:
 
 
     void unsetCube(const Vector3& direction) {
-        auto it = cubes.find(direction);
-        if (it != cubes.end()) {
-            cubes.erase(it); // Remove the cube from the map
-            
-            // Update isBoundary status after removal.
-            // This simple example marks the face as a boundary if no neighbors are left.
-            
-            if(cubes.size() == 1) isBoundary = 1;
-            
-            //isBoundary = cubes.size() == 1;
+        const int idx = Vector3::axisIndex(direction);
+        if (cubes[idx]) {
+            cubes[idx] = nullptr;
+            cubeCount--;
+            if (cubeCount == 1) isBoundary = 1;
         }
      }
      
      int getIsBoundary() {return isBoundary;}
      
-     Face *  getAdjacent(const Vector3& direction) { return neighbors[direction]; }
+     Face *  getAdjacent(const Vector3& direction) { return neighbors[Vector3::axisIndex(direction)]; }
 
-     void setAdjacent(const Vector3& direction, Face * face) { assert(face->getId() != this->getId()) ; neighbors[direction] = face; }
-     
-     void unsetAdjacent(const Vector3& direction) {
-     	auto it = neighbors.find(direction);
-        if (it != neighbors.end()) neighbors.erase(it); // Remove the face from the map
+     void setAdjacent(const Vector3& direction, Face * face) {
+        assert(face);
+        assert(face->getId() != this->getId());
+        neighbors[Vector3::axisIndex(direction)] = face;
      }
      
-     void removeBoundary() { neighbors.clear(); }
+     void unsetAdjacent(const Vector3& direction) {
+     	neighbors[Vector3::axisIndex(direction)] = nullptr;
+     }
+     
+     void removeBoundary() { neighbors.fill(nullptr); }
      
      Cube* getCube(const Vector3& direction) {
-        auto it = cubes.find(direction);
-        if (it != cubes.end()) return it->second; // Return the found Cube*
-        
-        return nullptr; // Return nullptr if no Cube* is found
+        return cubes[Vector3::axisIndex(direction)];
     }
     
     Cube* getCube() {
         // Check if the face is a boundary face with exactly one associated cube
-        if (isBoundary && cubes.size() == 1) return cubes.begin()->second; // cubes.begin() returns an iterator to the first element, ->second accesses the Cube* value
+        if (isBoundary && cubeCount == 1) {
+            for (Cube* c : cubes) if (c) return c;
+        }
         
         // If not a boundary face or no cubes are associated, return nullptr
         return nullptr;
     }
-    
-    const std::unordered_map<Vector3, Face*>& getNeighbors() const { return neighbors; }
 
 	void printInfo() {
 		printf("FaceId: %d ",id);
@@ -199,29 +229,25 @@ public:
 	
     void printNeighbors() {
     	printf("FaceId/BId: [%d,%d]:%s ",id,bId,getCoordStr().c_str()	);
-        for (const auto& pair : neighbors) {
-            const Vector3& dir = pair.first;
-            Face* neighborFace = pair.second;
-            //Cube* neighborCube = neighborFace->getCube();
-            std::string dirStr = dir.getStr();
-            //int neighborCubeId = neighborCube->getId();
-            std::string neighborFaceDirStr = neighborFace->getCoordStr();
-			printf("[%d,%d]: ",neighborFace->getId(),neighborFace->getBId());
-			printf("[%s %s] ",dirStr.c_str(),neighborFaceDirStr.c_str());
-			
-			assert(neighborFaceDirStr.c_str() != "0");
-		}
+        for (int i = 0; i < 6; i++) {
+            Face* neighborFace = neighbors[i];
+            if (!neighborFace) continue;
+            const Vector3 dir = Vector3::axisFromIndex(i);
+            const std::string dirStr = dir.getStr();
+            const std::string neighborFaceDirStr = neighborFace->getCoordStr();
+            printf("[%d,%d]: ", neighborFace->getId(), neighborFace->getBId());
+            printf("[%s %s] ", dirStr.c_str(), neighborFaceDirStr.c_str());
+            assert(neighborFaceDirStr != "0");
+        }
         std::cout << std::endl;
     }
 		
 	void checkNeighborDirections() const {
-		for (const auto& pair : neighbors) {
-		    Face* neighborFace = pair.second;
-		    std::string neighborFaceDirStr = neighborFace->getVectorStr();
-
-		    // Using != "0" to compare the string value rather than the C-style string comparison
-		    assert(neighborFaceDirStr != "0");
-		}
+        for (Face* neighborFace : neighbors) {
+            if (!neighborFace) continue;
+            const std::string neighborFaceDirStr = neighborFace->getVectorStr();
+            assert(neighborFaceDirStr != "0");
+        }
 	}
     
 
@@ -231,8 +257,8 @@ class Cube {
 public:
     int id;
     Vector3 coordinate;
-    std::unordered_map<Vector3, Face*> faces;
-	std::unordered_map<Vector3, Cube*> neighbors; // Store neighboring cubes
+    std::array<Face*, 6> faces{};
+	std::array<Cube*, 27> neighbors{}; // offsets in {-1,0,1}^3 including diagonals
 	    
     Cube() { Initialize() ; }
     
@@ -240,8 +266,8 @@ public:
 	void Initialize() {
         id = -1;
         coordinate = {0, 0, 0};
-        faces.reserve(6);
-        neighbors.reserve(26); // offsets in {-1,0,1}^3 excluding (0,0,0)
+        faces.fill(nullptr);
+        neighbors.fill(nullptr);
     }
 
 	void setVector(int x, int y, int z) { coordinate = Vector3(x, y, z); }
@@ -249,12 +275,11 @@ public:
 	
 	const Vector3& getVector() const { return coordinate ; }
 	
-	void setFace(const Vector3& direction, Face* face) { faces[direction] = face; }
+	void setFace(const Vector3& direction, Face* face) { faces[Vector3::axisIndex(direction)] = face; }
 
     // Method to remove the association of a face with the cube in a specified direction
     void unsetFace(const Vector3& direction) {
-        auto it = faces.find(direction);
-        if (it != faces.end()) { faces.erase(it); }
+        faces[Vector3::axisIndex(direction)] = nullptr;
     }
 
     
@@ -262,72 +287,57 @@ public:
     void setId(int setid) { id = setid;}
     
     Face* getFace(const Vector3& vector) {
-    	if (faces.find(vector) != faces.end()) { return faces[vector]; }
-        return nullptr;
+        return faces[Vector3::axisIndex(vector)];
     }
 
     void setNeighbor(const Vector3& vector, Cube* neighbor) {
-    	assert(!neighbors[vector]);
-    	neighbors[vector] = neighbor; 
+        const int idx = Vector3::neighborIndex(vector);
+    	assert(!neighbors[idx]);
+    	neighbors[idx] = neighbor;
     }
 
     Cube* getNeighbor(const Vector3& vector) {
-    	if (neighbors.find(vector) != neighbors.end()) { return neighbors[vector]; }
-        return nullptr;
+        const int idx = Vector3::neighborIndex(vector);
+        return neighbors[idx];
     }
     
     void unsetNeighbor(const Vector3& direction) {
-        auto it = neighbors.find(direction);
-        if (it != neighbors.end()) { neighbors.erase(it); }
+        neighbors[Vector3::neighborIndex(direction)] = nullptr;
     }
-    
-    const std::unordered_map<Vector3, Cube*>& getNeighbors() const { return neighbors; }
     
     
     Cube * getDiagonalCube(const Vector3& x1, const Vector3& x2) {
-    	std::vector<std::vector<Vector3>> permutations = { {x1, x2}, {x1, x2} };
-    	
-    	for (const auto& perm : permutations) {
-		    Cube* current = this; // Start from the current cube
-		    bool pathValid = true;
-		    
-		    for (const auto& dir : perm) {
-		        current = current->getNeighbor(dir);
-		        if (!current) {
-		            pathValid = false; // Path is invalid if any step fails
-		            break;
-		        }
-		    }
-		    if (pathValid) { return current; }// Found a valid corner cube
-		}
-
-		return nullptr; // No corner cube found
+        const std::array<std::array<Vector3, 2>, 2> perms = {{
+            {x1, x2},
+            {x2, x1},
+        }};
+        for (const auto& perm : perms) {
+            Cube* current = this;
+            current = current->getNeighbor(perm[0]);
+            if (!current) continue;
+            current = current->getNeighbor(perm[1]);
+            if (current) return current;
+        }
+        return nullptr;
     }
     
 	Cube * getCornerCube(const Vector3& x1, const Vector3& x2, const Vector3& x3) {
-		// Manually define all six permutations for three items
-		std::vector<std::vector<Vector3>> permutations = {
-		    {x1, x2, x3}, {x1, x3, x2},
-		    {x2, x1, x3}, {x2, x3, x1},
-		    {x3, x1, x2}, {x3, x2, x1}
-		};
+        const std::array<std::array<Vector3, 3>, 6> perms = {{
+            {x1, x2, x3}, {x1, x3, x2},
+            {x2, x1, x3}, {x2, x3, x1},
+            {x3, x1, x2}, {x3, x2, x1},
+        }};
 
-		// Try each permutation to find a corner neighbor
-		for (const auto& perm : permutations) {
-		    Cube* current = this; // Start from the current cube
-		    bool pathValid = true;
-		    
-		    for (const auto& dir : perm) {
-		        current = current->getNeighbor(dir);
-		        if (!current) {
-		            pathValid = false; // Path is invalid if any step fails
-		            break;
-		        }
-		    }
-		    if (pathValid) { return current; }// Found a valid corner cube
-		}
-
-		return nullptr; // No corner cube found
+        for (const auto& perm : perms) {
+            Cube* current = this;
+            current = current->getNeighbor(perm[0]);
+            if (!current) continue;
+            current = current->getNeighbor(perm[1]);
+            if (!current) continue;
+            current = current->getNeighbor(perm[2]);
+            if (current) return current;
+        }
+        return nullptr;
 	}
 
 
@@ -351,8 +361,7 @@ public:
     
     
     void printFaceIDs() const {
-        // Define the directions in the order you wish to print
-        std::vector<Vector3> directions = {
+        const std::array<Vector3, 6> directions = {
             Vector3(1, 0, 0),   // x
             Vector3(0, 1, 0),   // y
             Vector3(0, 0, 1),   // z
@@ -363,8 +372,8 @@ public:
 
         printf("CUBE COORD ID: %d\t",this->id);
         for (const auto& dir : directions) {
-            auto it = faces.find(dir);
-            if (it != faces.end() && it->second != nullptr) printf("%s: %d, ", dir.getStr().c_str(), it->second->getId());
+            Face* f = faces[Vector3::axisIndex(dir)];
+            if (f) printf("%s: %d, ", dir.getStr().c_str(), f->getId());
             else printf("%s: None, ", dir.getStr().c_str());
             
         }
@@ -373,14 +382,12 @@ public:
     
     void printNeighbors() const {
         printf("Cube ID %d neighbors:\n", id);
-        for (const auto& pair : neighbors) {
-            const Vector3& dir = pair.first;
-            const Cube* neighbor = pair.second;
-            if (neighbor) {
-                printf("Direction (%d, %d, %d): Neighbor Cube ID %d\n", dir.x, dir.y, dir.z, neighbor->id);
-            } else {
-                printf("Direction (%d, %d, %d): No Neighbor\n", dir.x, dir.y, dir.z);
-            }
+        for (int idx = 0; idx < 27; idx++) {
+            if (idx == 13) continue; // (0,0,0)
+            const Cube* neighbor = neighbors[idx];
+            if (!neighbor) continue;
+            const Vector3 dir = Vector3::neighborFromIndex(idx);
+            printf("Direction (%d, %d, %d): Neighbor Cube ID %d\n", dir.x, dir.y, dir.z, neighbor->id);
         }
     }
 

@@ -21,17 +21,18 @@ void Ball::printCubulation() {
         printf("Cube ID: %zu ", i);
         cube->getVector().printCoord();
         printf("Faces: ");
-        for (const auto& facePair : cube->faces) {
-            printf("%d ", facePair.second->getId());
+        for (Face* f : cube->faces) {
+            if (f) printf("%d ", f->getId());
         }
         printf("\n");
         
         // New section for printing neighbor information
         printf("Neighbors: ");
-        for (const auto& neighborPair : cube->neighbors) {
-            const Vector3& dir = neighborPair.first; // Direction to the neighbor
-            Cube* neighborCube = neighborPair.second;
-            // Assuming each direction vector uniquely identifies the direction to a neighbor
+        for (int idx = 0; idx < 27; idx++) {
+            if (idx == 13) continue;
+            Cube* neighborCube = cube->neighbors[idx];
+            if (!neighborCube) continue;
+            const Vector3 dir = Vector3::neighborFromIndex(idx);
             printf("- %d (%d,%d,%d) ", neighborCube->getId(), dir.x, dir.y, dir.z);
         }
         printf("\n");
@@ -41,13 +42,13 @@ void Ball::printCubulation() {
     for (size_t i = 0; i < nextFaceId; ++i) {
         Face* face = faceMap[i];
         printf("Face ID: %zu Cubes: ", i);
-        for (const auto& cubePair : face->cubes) {
-            printf("%d ", cubePair.second->getId());
+        for (Cube* c : face->cubes) {
+            if (c) printf("%d ", c->getId());
         }
         printf("Is Boundary: %s ", face->isBoundary ? "Yes" : "No");
         printf("Neighbors: ");
-        for (const auto& neighborPair : face->neighbors) {
-            printf("%d ", neighborPair.second->getId());
+        for (Face* nf : face->neighbors) {
+            if (nf) printf("%d ", nf->getId());
         }
         face->getVector().printCoord();
     }
@@ -66,17 +67,13 @@ void Ball::printCubulation() {
     printf("Face ID: %zu ", i);
 
     printf("Cubes: ");
-    for (const auto& cubePair : face->cubes) {
-        printf("%d ", cubePair.second->getId());
+    for (Cube* c : face->cubes) {
+        if (c) printf("%d ", c->getId());
     }
    
     printf("Neighbors: [ ");
-    for (const auto& neighborPair : face->neighbors) {
-        // Assuming that neighborPair.second is a pointer to the neighboring Face
-        Face* neighborFace = neighborPair.second;
-        if (neighborFace) { // Check if the neighbor face pointer is not null
-            printf("%d ", neighborFace->getId());
-        }
+    for (Face* neighborFace : face->neighbors) {
+        if (neighborFace) printf("%d ", neighborFace->getId());
     }
     printf("] ");
     face->getVector().printCoord();
@@ -129,9 +126,8 @@ void Ball::printBoundaryFaceNeighbors(const char* filename) {
     for (size_t i = 0; i < nextFaceBId; ++i) {
         Face* face = BoundaryFaces[i];
         fprintf(file, "%d ", face->getBId());
-        for (const auto& neighbor : face->neighbors) {
-            Face* neighborFace = neighbor.second;
-                fprintf(file, "%d ", neighborFace->getBId());
+        for (Face* neighborFace : face->neighbors) {
+            if (neighborFace) fprintf(file, "%d ", neighborFace->getBId());
         }
         fprintf(file,"\n");
     }
