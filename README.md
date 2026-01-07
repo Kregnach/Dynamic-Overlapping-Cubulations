@@ -35,13 +35,14 @@ This simulation implements a Monte Carlo method for generating and studying 3D c
 
 The action functional is:
 ```
-S = α·A + λ·V + ε·(V - V₀)²
+S = α·A + λ·V + κ·(additional terms) + ε·(V - V₀)²
 ```
 where:
 - `A` = boundary area (number of boundary faces)
 - `V` = volume (number of cubes)
 - `α` = boundary coupling
 - `λ` = bulk coupling
+- `κ` = additional coupling parameter (kappa)
 - `ε` = volume constraint strength
 - `V₀` = target volume
 
@@ -141,31 +142,43 @@ Configuration files use whitespace-separated `key value` pairs (one per line).
 | `sweeps` | int | Number of measurement sweeps |
 | `name` | string | Output file identifier |
 
-### Optional Parameters
+### Additional Parameters
 
-Some parameters may be present in config files but are not currently used:
-- `kappa` - Additional coupling parameter
-- `tuneAV` - Automatic tuning flag
-- `initialsteps` - Initial growth steps
-- `inname`, `outname` - Input/output cubulation files
-- `fromfile` - Load from file flag
-- `badjacency`, `cadjacency`, `cdensity` - Output flags
-- `neckstat`, `rhist` - Additional measurement flags
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `kappa` | double | Additional coupling parameter used in Monte Carlo action calculations |
+| `tuneAV` | int | Tuning mode selector: `0` = tune volume (V), `1` = tune area (A). Controls whether `tuneV()` or `tuneA()` is called during thermalization |
+| `initialsteps` | int | Initial growth steps before equilibration |
+| `inname`, `outname` | string | Input/output cubulation state files (for saving/loading configurations) |
+| `fromfile` | int | Flag to load initial cubulation from file (`1` = load from `inname`, `0` = start fresh) |
+| `badjacency` | int | Output flag: `1` = write boundary adjacency to `Boundary-<name>.out` |
+| `cadjacency` | int | Output flag: `1` = write cube adjacency to `Cubulation-<name>.out` |
+| `cdensity` | int | Output flag: `1` = write cube density/coordinates to `CubeDensity-<name>.out` |
+| `neckstat` | int | Output flag: `1` = write neck statistics to `necks-<name>.out` |
+| `rhist` | int | Output flag: `1` = write radial histograms to `rhist-<name>.out` |
 
 ### Example Configuration
 
 ```
 seed            12345
+tuneAV          0
 A               2400
 V               1000
 startsize       10
 lambda          -0.4
 alpha           1.2
+kappa           0.0
 epsilon         0.002
+initialsteps    1000
 steps           1000
 thermal         20000
 sweeps          0
 name            test-run
+badjacency      1
+cadjacency      1
+cdensity        1
+neckstat        0
+rhist           0
 ```
 
 ---
@@ -201,9 +214,11 @@ where:
 ### Thermalization
 
 The simulation performs:
-1. **Initial growth**: Grows to target volume V
+1. **Initial growth**: Grows to target volume V (or uses `initialsteps`)
 2. **Equilibration**: Random grow/shrink moves to reach equilibrium
-3. **Thermal cycles**: Multiple cycles with volume tuning to maintain target volume
+3. **Thermal cycles**: Multiple cycles with automatic tuning:
+   - If `tuneAV=0`: Calls `tuneV()` to adjust `lambda` and maintain target volume V
+   - If `tuneAV=1`: Calls `tuneA()` to adjust `alpha` and maintain target boundary area A
 
 ---
 
@@ -217,6 +232,8 @@ The simulation generates several output files:
 | `Boundary-<name>.out` | Boundary face adjacency list (if `badjacency=1`) |
 | `Cubulation-<name>.out` | Cube neighbor connectivity list (if `cadjacency=1`) |
 | `CubeDensity-<name>.out` | Cube coordinates (ID, x, y, z) (if `cdensity=1`) |
+| `necks-<name>.out` | Neck statistics (if `neckstat=1`) |
+| `rhist-<name>.out` | Radial histograms (if `rhist=1`) |
 
 ### Output Format: `cube-<name>.out`
 
