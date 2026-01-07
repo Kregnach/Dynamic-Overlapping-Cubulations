@@ -1,31 +1,46 @@
 #!/bin/bash
 
-#for l in $(seq -1 0.1 1) $(seq -0.09 0.01 0.09) ; do
-#for l in $(seq 0 0.01 0.1) $(seq 0.2 0.1 1) $(seq 2 1 10) ; do
-#for e in $(seq 1 1 10) $(seq 0 0.1 0.9) $(seq -10 1 -1)  ; do
-for e in  $(seq -2 0.1 2) 3 4 5 6 7 8 9 10; do 
-#for e in 5 ; do
-#for e in 150 200 400 800 ; do
-for V in 10000 ; do
 
+for e in 1.2 ; do
+for V in 1000 ; do
+for A in 2400 ; do
 
+for k in $(seq -2 0.4 2) ; do
+
+for l in -0.4 0 0.4 ; do
+
+name=$k-$l-$A
+#name2=2.0-$l-$A
+#name=$k-$e-$V
 rand=$RANDOM
 
-cat > Cfg-$e-$V.txt << EOF
+cat > Cfg-$name.txt << EOF
 seed			${rand}
-A			150
+tuneAV			0
+A			$A
 V			$V
-startsize		2
-lambda			0.0
+startsize		10
+lambda			$l
 alpha			$e
-epsilon			0.001
-steps			10000
-thermal			100000
+kappa			$k
+epsilon			0.002
+initialsteps		$V
+steps			${V}
+thermal			20000
 sweeps			0
-name			$e-$V
+name			$name
+inname			conf-$name.dat
+outname			conf-$name.dat
+fromfile		0
+badjacency		1
+cadjacency		1
+cdensity		1
+neckstat		0
+rhist			0
 EOF
 
-
 done;
 done;
-#
+done;
+done;
+done;
