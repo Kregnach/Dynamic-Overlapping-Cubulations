@@ -28,7 +28,7 @@ std::pair<int, Face*> Ball::CheckValidShrink(Face* boundaryFace) {
 	
 	Vector3 direction = boundaryFace->getVector();
 	    
-    std::vector<Vector3> orthogonals = direction.getOrthogonal(); // Get the orthogonal directions
+    auto orthogonals = direction.getOrthogonal(); // 4 orthogonal directions (no allocation)
       
     Cube * tempCube0 = nullptr;
     Cube * tempCube1 = nullptr;
@@ -130,7 +130,7 @@ void Ball::shrinkCube(Face* boundaryFace) {
 				
 	Cube * cube = boundaryFace->getCube();
 	Vector3 direction = boundaryFace->getVector();
-    std::vector<Vector3> orthogonals = direction.getOrthogonal(); // Get the orthogonal directions
+    auto orthogonals = direction.getOrthogonal(); // 4 orthogonal directions (no allocation)
     
     Cube * tempCube0 = nullptr;
     Cube * tempCube1 = nullptr;

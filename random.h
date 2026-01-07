@@ -97,17 +97,15 @@ void setGlobalRNGSeed(uint64_t seed) {
 
 
 
-Xoshiro256PlusPlus& RNG() {
-    static std::unique_ptr<Xoshiro256PlusPlus> rng_instance;
-    if (!rng_instance) {
-        rng_instance = std::make_unique<Xoshiro256PlusPlus>(getseed());
-    }
-    return *rng_instance;
+// Global RNG accessor (no heap allocation / indirection).
+static inline Xoshiro256PlusPlus& RNG() {
+    static Xoshiro256PlusPlus rng_instance(getseed());
+    return rng_instance;
 }
 
 
 
-void setGlobalRNGSeed(uint64_t seed) { RNG().reseed(seed); }
+static inline void setGlobalRNGSeed(uint64_t seed) { RNG().reseed(seed); }
 /*// Global RNG function
 Xoshiro256PlusPlus& RNG() {
     static Xoshiro256PlusPlus rng_instance;
