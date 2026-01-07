@@ -2,8 +2,15 @@
 #ifndef GROW_CUBE_H
 #define GROW_CUBE_H
 
-
-
+/*
+ * Performance optimizations applied: 2026-01-07
+ * Author: Dániel Németh
+ * 
+ * Changes:
+ * - Added caching of nextFaceBId and orthogonals arrays to reduce repeated member access
+ * - Optimized CheckValidGrow() and growCube() functions with cached values
+ * - Reduced redundant calculations in tight loops
+ */
 
 #include "ball.h"
 #include <numeric>
