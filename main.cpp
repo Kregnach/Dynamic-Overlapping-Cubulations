@@ -1,6 +1,14 @@
 
 #include "globals.h"
 
+/*
+ * Performance optimizations applied: 2026-01-07
+ * Author: Dániel Németh
+ * 
+ * Changes:
+ * - Cached steps/window calculation in thermal loop to avoid repeated division
+ * - Optimized main simulation loop structure
+ */
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -70,8 +78,11 @@ int main(int argc, char* argv[]) {
     
 	window = 10;
     
+    // Cache window division result
+    const int stepsPerWindow = int(steps/window);
+    
     for(int i = 0 ; i < thermal; i++) {
-		for(int j = 0 ; j < int(steps/window); j++) {
+		for(int j = 0 ; j < stepsPerWindow; j++) {
 			meanV = 0;
 			for(int k = 0 ; k < window ; k++) {
 				if(0.5 > uniform_real()) ball.performGrow();

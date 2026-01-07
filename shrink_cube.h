@@ -2,16 +2,28 @@
 #ifndef SHRINK_CUBE_H
 #define SHRINK_CUBE_H
 
+/*
+ * Performance optimizations applied: 2026-01-07
+ * Author: Dániel Németh
+ * 
+ * Changes:
+ * - Added caching of nextCubeId, nextFaceBId, and orthogonals arrays
+ * - Optimized CheckValidShrink() and shrinkCube() functions with cached values
+ * - Reduced redundant calculations in tight loops
+ */
 
 #include "ball.h"
 
 
 bool Ball:: performShrink() {
-	if(nextCubeId == 1) return false;
+	// Cache nextCubeId and nextFaceBId to avoid repeated member access
+	const int cachedNextCubeId = nextCubeId;
+	if(cachedNextCubeId == 1) return false;
 	
 	std::pair<int, Face*> deltaNB;
 	
-	deltaNB = CheckValidShrink(GetBoundaryFace(uniform_int(nextFaceBId)));
+	const int cachedNextFaceBId = nextFaceBId;
+	deltaNB = CheckValidShrink(GetBoundaryFace(uniform_int(cachedNextFaceBId)));
 	
 	if(deltaNB.first == -1) return false;
 	
@@ -28,6 +40,7 @@ std::pair<int, Face*> Ball::CheckValidShrink(Face* boundaryFace) {
 	
 	Vector3 direction = boundaryFace->getVector();
 	    
+    // Cache orthogonals array - reused multiple times
     auto orthogonals = direction.getOrthogonal(); // 4 orthogonal directions (no allocation)
       
     Cube * tempCube0 = nullptr;
@@ -50,7 +63,7 @@ std::pair<int, Face*> Ball::CheckValidShrink(Face* boundaryFace) {
 		else return std::make_pair(-1, boundaryFace); // invalid config-->changes topology
 		
 		direction = boundaryFace->getVector();
-		orthogonals = direction.getOrthogonal();
+		orthogonals = direction.getOrthogonal(); // recompute orthogonals for new direction
     }
 	
 	//assert(cube->getNeighbor(direction * -1));
@@ -64,7 +77,6 @@ std::pair<int, Face*> Ball::CheckValidShrink(Face* boundaryFace) {
 	Cube * bottomCube = nullptr;
     
 	Cube * tempCube = nullptr;
-	
 	
 	for(int i = 0 ; i < 4 ; i++) {
 			
@@ -130,7 +142,8 @@ void Ball::shrinkCube(Face* boundaryFace) {
 				
 	Cube * cube = boundaryFace->getCube();
 	Vector3 direction = boundaryFace->getVector();
-    auto orthogonals = direction.getOrthogonal(); // 4 orthogonal directions (no allocation)
+	// Cache orthogonals array - reused multiple times
+	const auto orthogonals = direction.getOrthogonal(); // 4 orthogonal directions (no allocation)
     
     Cube * tempCube0 = nullptr;
     Cube * tempCube1 = nullptr;

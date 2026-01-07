@@ -2,6 +2,16 @@
 #ifndef BALL_CUBE_H
 #define BALL_CUBE_H
 
+/*
+ * Performance optimizations applied: 2026-01-07
+ * Author: Dániel Németh
+ * 
+ * Changes:
+ * - Added caching of member variables in getActionDiffGrow() and getActionDiffShrink()
+ * - Precomputed double conversions and cached frequently accessed values
+ * - Optimized action probability calculations
+ */
+
 #include <set>
 #include <vector>
 #include "cube.h"
@@ -137,12 +147,20 @@ public:
 	}
 	
 	bool getActionDiffGrow(double dNB) {
+		// Cache member variables to avoid repeated access
+		const int cachedNextFaceBId = nextFaceBId;
+		const int cachedNextCubeId = nextCubeId;
+		const double cachedAlpha = alpha;
+		const double cachedLambda = lambda;
+		const double cachedEpsilon = epsilon;
+		const int cachedV = V;
 
-		double probA = (double)nextFaceBId/((double)nextFaceBId+dNB);
-		double delta_S = -alpha*dNB -(double)lambda + epsilon*(double)(2*(V-nextCubeId)-1);
-		double probN = GetProbN(dNB);
+		const double cachedNextFaceBId_d = static_cast<double>(cachedNextFaceBId);
+		const double probA = cachedNextFaceBId_d / (cachedNextFaceBId_d + dNB);
+		const double delta_S = -cachedAlpha*dNB - cachedLambda + cachedEpsilon*static_cast<double>(2*(cachedV-cachedNextCubeId)-1);
+		const double probN = GetProbN(dNB);
 		
-		double moveprob = probN*probA* std::exp(delta_S);
+		const double moveprob = probN*probA* std::exp(delta_S);
 				
 		if(moveprob > 1) return true;
 		else if(moveprob > uniform_real()) return true;
@@ -152,14 +170,22 @@ public:
 	
 	
 	bool getActionDiffShrink(double dNB) {
+		// Cache member variables to avoid repeated access
+		const int cachedNextFaceBId = nextFaceBId;
+		const int cachedNextCubeId = nextCubeId;
+		const double cachedAlpha = alpha;
+		const double cachedLambda = lambda;
+		const double cachedEpsilon = epsilon;
+		const int cachedV = V;
 		
-		double probA = (double)nextFaceBId/((double)nextFaceBId+dNB);
+		const double cachedNextFaceBId_d = static_cast<double>(cachedNextFaceBId);
+		const double probA = cachedNextFaceBId_d / (cachedNextFaceBId_d + dNB);
 
-		double delta_S = -alpha*(double)dNB + (double)lambda + epsilon *(double)(2*(nextCubeId-V)+1);
+		const double delta_S = -cachedAlpha*dNB + cachedLambda + cachedEpsilon*static_cast<double>(2*(cachedNextCubeId-cachedV)+1);
 		
-		double probN = GetProbN(dNB);
+		const double probN = GetProbN(dNB);
 		
-		double moveprob = probN*probA*std::exp(delta_S);
+		const double moveprob = probN*probA*std::exp(delta_S);
 
 		if(moveprob > 1) return true;
 		else if(moveprob > uniform_real()) return true;

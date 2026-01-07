@@ -3,6 +3,16 @@
 #ifndef MEASURE_H
 #define MEASURE_H
 
+/*
+ * Performance optimizations applied: 2026-01-07
+ * Author: Dániel Németh
+ * 
+ * Changes:
+ * - Added caching of nextCubeId and nextFaceBId to avoid repeated member access
+ * - Precomputed inverse value (1.0/nextCubeId) to replace division with multiplication
+ * - Optimized measurement loop calculations
+ */
+
 void Ball::measure() {
     
     char filename[256];
@@ -25,7 +35,9 @@ void Ball::measure() {
     }
 
     // Measure the area of the cubulation
-    fprintf(out, "%d\t%d\t", nextCubeId,nextFaceBId);
+    // Cache nextFaceBId to avoid repeated member access
+    const int cachedNextFaceBId = nextFaceBId;
+    fprintf(out, "%d\t%d\t", nextCubeId, cachedNextFaceBId);
 
     // Compute the average coordinate (centroid)
     double sumx = 0.0, sumy = 0.0, sumz = 0.0;
@@ -34,19 +46,22 @@ void Ball::measure() {
     double R3 = 0;
     double R4 = 0;
     
-    for (int i = 0; i < nextCubeId; i++) {
+    // Cache nextCubeId to avoid repeated member access
+    const int cachedNextCubeId = nextCubeId;
+    const double invN = 1.0 / static_cast<double>(cachedNextCubeId);
+    
+    for (int i = 0; i < cachedNextCubeId; i++) {
         const Vector3& vec = cubeMap[i]->getVector();
         sumx += vec.x;
         sumy += vec.y;
         sumz += vec.z;
     }
-    const double invN = 1.0 / static_cast<double>(nextCubeId);
     const double avgx = sumx * invN;
     const double avgy = sumy * invN;
     const double avgz = sumz * invN;
     
 
-    for (int i = 0; i < nextCubeId; i++) {
+    for (int i = 0; i < cachedNextCubeId; i++) {
        
         const Vector3& vec = cubeMap[i]->getVector();
         const double dx = avgx - static_cast<double>(vec.x);
@@ -60,7 +75,7 @@ void Ball::measure() {
         R4 += r*r*r*r;
          
     }
-    R /= nextCubeId;
+    R *= invN; // Use cached inverse instead of division
 
 
     fprintf(out, "%g\t", R);

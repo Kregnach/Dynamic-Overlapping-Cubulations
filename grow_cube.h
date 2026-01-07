@@ -14,9 +14,11 @@ bool Ball:: performGrow() {
 
 	std::pair<int, Face*> deltaNB;
 
-	if(nextFaceBId-1 == 100000-2) return false;
+	// Cache nextFaceBId to avoid repeated member access
+	const int cachedNextFaceBId = nextFaceBId;
+	if(cachedNextFaceBId-1 == 100000-2) return false;
 	
-	deltaNB = CheckValidGrow(GetBoundaryFace(uniform_int(nextFaceBId)));
+	deltaNB = CheckValidGrow(GetBoundaryFace(uniform_int(cachedNextFaceBId)));
 	
 	if(deltaNB.first == -1) return false;
 		
@@ -39,6 +41,7 @@ std::pair<int, Face*> Ball::CheckValidGrow(Face* boundaryFace) {
 
     Vector3 direction = boundaryFace->getVector(); // Get the direction of the boundary cube
     
+    // Cache orthogonals array - reused multiple times
     auto orthogonals = direction.getOrthogonal(); // 4 orthogonal directions (no allocation)
 	
 //	printf("BoundaryFace of CUBE %d: \n",oldCube->getId());
@@ -81,9 +84,7 @@ std::pair<int, Face*> Ball::CheckValidGrow(Face* boundaryFace) {
 		else return std::make_pair(-1, boundaryFace);
     	
     	direction = boundaryFace->getVector(); 
-    	
-		orthogonals = direction.getOrthogonal(); // reset the orthogonals
-
+    	orthogonals = direction.getOrthogonal(); // recompute orthogonals for new direction
 		oldCube = boundaryFace->getCube(); // reset the oldCube
 
 	}
@@ -238,7 +239,8 @@ void Ball::growCube(Face* boundaryFace) {
 	
 	Vector3 direction = boundaryFace->getVector(); // Set the new cube adjacent to the boundary face
 	newCube->setVector(oldCube->getVector() + direction); // set the coordinate of the old cube
-	auto orthogonals = direction.getOrthogonal(); // 4 orthogonal directions (no allocation)
+	// Cache orthogonals array - reused multiple times
+	const auto orthogonals = direction.getOrthogonal(); // 4 orthogonal directions (no allocation)
 	
 	for(int i = 0 ; i < 4 ; i++) {
 				
